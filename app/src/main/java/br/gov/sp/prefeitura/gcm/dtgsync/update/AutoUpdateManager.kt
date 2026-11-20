@@ -140,6 +140,11 @@ class AutoUpdateManager(private val context: Context) {
      * Dispara o instalador do sistema Android
      */
     fun installApk(activity: Activity, apkFile: File) {
+        if (!apkFile.exists() || apkFile.length() == 0L) {
+            Toast.makeText(activity, "Arquivo APK corrompido ou vazio.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         // Validação da permissão REQUEST_INSTALL_PACKAGES no Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!activity.packageManager.canRequestPackageInstalls()) {
@@ -147,7 +152,7 @@ class AutoUpdateManager(private val context: Context) {
                     data = Uri.parse("package:${activity.packageName}")
                 }
                 activity.startActivity(intent)
-                Toast.makeText(activity, "Autorize a instalação desta fonte e tente novamente.", Toast.LENGTH_LONG).show()
+                Toast.makeText(activity, "Autorize a instalação desta fonte para atualizar o app e tente novamente.", Toast.LENGTH_LONG).show()
                 return
             }
         }
@@ -161,7 +166,8 @@ class AutoUpdateManager(private val context: Context) {
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             activity.startActivity(intent)
         } catch (e: Exception) {

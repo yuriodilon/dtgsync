@@ -223,13 +223,14 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
             show()
         }
 
-        val fullDownloadUrl = if (info.downloadUrl.startsWith("http")) {
-            info.downloadUrl
-        } else {
-            "https://dtg.yuriodilon.com" + info.downloadUrl
-        }
-
         lifecycleScope.launch {
+            val baseUrl = NetworkUtils.getActiveServerBaseUrl()
+            val fullDownloadUrl = if (info.downloadUrl.startsWith("http")) {
+                info.downloadUrl
+            } else {
+                baseUrl + info.downloadUrl
+            }
+
             val downloadResult = autoUpdateManager.downloadApk(fullDownloadUrl) { progress ->
                 lifecycleScope.launch(Dispatchers.Main) {
                     progressDialog.progress = progress
@@ -243,7 +244,7 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
                 autoUpdateManager.installApk(this@MainActivity, apkFile)
             }.onFailure { err ->
                 appendLog("[OTA ERRO] Falha no download do APK: ${err.message}")
-                Toast.makeText(this@MainActivity, "Erro ao baixar atualização.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, "Erro ao baixar atualização: ${err.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
