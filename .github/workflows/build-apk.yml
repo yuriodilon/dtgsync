@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build & Package Android APK
@@ -29,12 +32,11 @@ jobs:
 
       - name: Compilar APK (Debug)
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug --stacktrace
-          else
-            gradle assembleDebug --stacktrace
+          if [ ! -f "./gradlew" ]; then
+            gradle wrapper --gradle-version 8.2.2
           fi
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload Artifact APK
         uses: actions/upload-artifact@v4
