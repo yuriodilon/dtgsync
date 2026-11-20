@@ -31,12 +31,7 @@ jobs:
           gradle-version: '8.2.2'
 
       - name: Compilar APK (Debug)
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            gradle wrapper --gradle-version 8.2.2
-          fi
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace --no-daemon
 
       - name: Upload Artifact APK
         uses: actions/upload-artifact@v4
