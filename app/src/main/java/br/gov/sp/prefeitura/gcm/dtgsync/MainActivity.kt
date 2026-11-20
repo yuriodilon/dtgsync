@@ -41,9 +41,11 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
     private lateinit var binding: ActivityMainBinding
     private lateinit var syncManager: DtgSyncManager
     private lateinit var autoUpdateManager: AutoUpdateManager
+    private val logBuffer = java.util.LinkedList<String>()
 
     companion object {
         private const val STORAGE_PERMISSION_CODE = 1001
+        private const val MAX_LOG_LINES = 150
 
         // Inspetorias Regionais da Guarda Civil Metropolitana de São Paulo
         val INSPETORIAS_GCM = listOf(
@@ -100,6 +102,7 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
         }
 
         binding.btnClearLogs.setOnClickListener {
+            logBuffer.clear()
             binding.tvLogs.text = "[LOGS LIMPOS PELO OPERADOR]"
         }
     }
@@ -276,8 +279,11 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
 
     private fun appendLog(message: String) {
         lifecycleScope.launch(Dispatchers.Main) {
-            val current = binding.tvLogs.text.toString()
-            binding.tvLogs.text = "$current\n$message"
+            if (logBuffer.size >= MAX_LOG_LINES) {
+                logBuffer.removeFirst()
+            }
+            logBuffer.add(message)
+            binding.tvLogs.text = logBuffer.joinToString("\n")
             binding.scrollLogs.post {
                 binding.scrollLogs.fullScroll(View.FOCUS_DOWN)
             }
@@ -285,7 +291,11 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
     }
 
     override fun onLogMessage(message: String) = appendLog(message)
-    override fun onSyncProgress(current: Int, total: Int) = appendLog("[PROGRESSO] Enviando voo $current de $total...")
+    override fun onSyncProgress(current: Int, total: Int) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            binding.btnSyncNow.text = "Sincronizando ($current/$total)..."
+        }
+    }
     override fun onSyncFinished(successCount: Int, failedCount: Int) {
         lifecycleScope.launch(Dispatchers.Main) {
             updateStatsUi()

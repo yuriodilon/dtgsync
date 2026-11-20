@@ -11,8 +11,8 @@ android {
         applicationId 'br.gov.sp.prefeitura.gcm.dtgsync'
         minSdk 26 // Android 8.0 Oreo (compatível com toda a linha DJI Smart Controller Enterprise e RC Plus)
         targetSdk 34
-        versionCode 5
-        versionName '1.2.0-tailscale'
+        versionCode 6
+        versionName '1.2.1'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }

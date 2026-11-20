@@ -174,15 +174,18 @@ class DtgSyncManager(private val context: Context) {
             listener?.onSyncProgress(index + 1, pendingFiles.size)
             listener?.onLogMessage("[UPLOAD ${index + 1}/${pendingFiles.size}] Enviando ${file.name} (${file.length() / 1024} KB)...")
 
-            val uploaded = uploadSingleFlightFile(file, hash, radioSerial, inspetoria, uploadUrl)
-            if (uploaded) {
+            val result = uploadSingleFlightFile(file, hash, radioSerial, inspetoria, uploadUrl)
+            if (result.isSuccess) {
                 markHashAsSynced(hash)
                 success++
-                listener?.onLogMessage("[SUCESSO] ${file.name} recebido e registrado na Central!")
+                listener?.onLogMessage("[SUCESSO] ${file.name} sincronizado com a Central!")
             } else {
                 failed++
-                listener?.onLogMessage("[ERRO] Falha ao enviar ${file.name}. Tentará novamente no próximo ciclo.")
+                listener?.onLogMessage("[ERRO ${file.name}] ${result.errorMessage ?: "Falha ao enviar"}")
             }
+
+            // Pausa controlada para manter a fluidez da UI e evitar saturação do socket
+            kotlinx.coroutines.delay(30)
         }
 
         listener?.onLogMessage("[FIM] Sincronização concluída: $success enviado(s), $failed falha(s).")
@@ -191,23 +194,21 @@ class DtgSyncManager(private val context: Context) {
     }
 
     /**
-     * Encontra todos os arquivos de voo (.txt, .dat, .csv) nas pastas conhecidas do DJI Pilot 2
+     * Encontra todos os arquivos de voo reais (.txt, .csv) nas pastas conhecidas do DJI Pilot 2,
+     * ignorando sumariamente a subpasta MCDatFlightRecords (dumps brutos do controlador de voo).
      */
     private fun findFlightRecordFiles(listener: SyncLogListener? = null): List<File> {
         val foundFiles = mutableListOf<File>()
         val externalStorage = Environment.getExternalStorageDirectory()
 
-        // Lista abrangente de diretórios do DJI Pilot 2 no Android (DJI RC Plus / Enterprise)
+        // Diretórios oficiais de registros de voo do DJI Pilot 2 no Android (DJI RC Plus / Enterprise)
         val candidatePaths = listOf(
             File(externalStorage, "DJI/com.dji.industry.pilot/FlightRecord"),
-            File(externalStorage, "DJI/com.dji.industry.pilot/FlightRecord/MCDatFlightRecords"),
+            File(externalStorage, "Android/data/com.dji.industry.pilot/files/FlightRecord"),
             File(externalStorage, "DJI/dji.pilot.2/FlightRecord"),
             File(externalStorage, "DJI/FlightRecord"),
-            File(externalStorage, "Android/data/com.dji.industry.pilot/files/FlightRecord"),
-            File(externalStorage, "Android/data/com.dji.industry.pilot/files/FlightRecord/MCDatFlightRecords"),
             File(externalStorage, "Android/data/dji.pilot.2/files/FlightRecord"),
             File("/sdcard/DJI/com.dji.industry.pilot/FlightRecord"),
-            File("/sdcard/DJI/com.dji.industry.pilot/FlightRecord/MCDatFlightRecords"),
             File("/sdcard/DJI/dji.pilot.2/FlightRecord"),
             File("/sdcard/DJI/FlightRecord")
         )
@@ -217,11 +218,10 @@ class DtgSyncManager(private val context: Context) {
                 if (dir.exists() && dir.isDirectory) {
                     val files = dir.listFiles { file ->
                         file.isFile && (file.extension.equals("txt", ignoreCase = true) ||
-                                file.extension.equals("dat", ignoreCase = true) ||
                                 file.extension.equals("csv", ignoreCase = true))
                     }
                     if (!files.isNullOrEmpty()) {
-                        listener?.onLogMessage("[DISCO] Pasta ativa: ${dir.path} (${files.size} arquivos)")
+                        listener?.onLogMessage("[DISCO] Pasta ativa: ${dir.path} (${files.size} registros de voo)")
                         foundFiles.addAll(files)
                     }
                 }
@@ -242,7 +242,7 @@ class DtgSyncManager(private val context: Context) {
         // Ordena por data (mais recentes primeiro) e remove duplicatas por caminho
         val distinct = foundFiles.distinctBy { it.absolutePath }.sortedByDescending { it.lastModified() }
         if (distinct.isNotEmpty()) {
-            listener?.onLogMessage("[DISCO] Localizados ${distinct.size} arquivos de voo no total.")
+            listener?.onLogMessage("[DISCO] Total de registros de voo localizados: ${distinct.size}")
         }
         return distinct
     }
@@ -251,15 +251,26 @@ class DtgSyncManager(private val context: Context) {
         if (maxDepth <= 0) return
         val list = dir.listFiles() ?: return
         for (item in list) {
-            if (item.isFile && (item.extension.equals("txt", ignoreCase = true) ||
-                        item.extension.equals("dat", ignoreCase = true) ||
+            // Ignora pastas de blackbox bruto interno (MCDatFlightRecords)
+            if (item.isDirectory) {
+                if (!item.name.startsWith(".") && !item.name.equals("MCDatFlightRecords", ignoreCase = true)) {
+                    scanDirectoryRecursively(item, result, maxDepth - 1)
+                }
+            } else if (item.isFile && (item.extension.equals("txt", ignoreCase = true) ||
                         item.extension.equals("csv", ignoreCase = true))) {
                 result.add(item)
-            } else if (item.isDirectory && !item.name.startsWith(".")) {
-                scanDirectoryRecursively(item, result, maxDepth - 1)
             }
         }
     }
+
+    /**
+     * Resultado da tentativa de envio com detalhes de diagnóstico
+     */
+    data class UploadFileResult(
+        val isSuccess: Boolean,
+        val httpCode: Int? = null,
+        val errorMessage: String? = null
+    )
 
     /**
      * Faz upload multipart/form-data do arquivo de voo para o servidor DTG Hub
@@ -270,7 +281,7 @@ class DtgSyncManager(private val context: Context) {
         radioSerial: String,
         inspetoria: String,
         uploadUrl: String
-    ): Boolean {
+    ): UploadFileResult {
         return try {
             val mediaType = "application/octet-stream".toMediaTypeOrNull()
             val requestBody = MultipartBody.Builder()
@@ -287,24 +298,36 @@ class DtgSyncManager(private val context: Context) {
                 )
                 .build()
 
+            // ATENÇÃO: NÃO adicionar radioSerial ou inspetoria no cabeçalho HTTP (addHeader),
+            // pois caracteres acentuados (ã, é) violam o RFC 7230 no OkHttp e causam IllegalArgumentException.
+            // Ambos os parâmetros já trafegam 100% seguros em UTF-8 no corpo multipart/form-data acima.
             val request = Request.Builder()
                 .url(uploadUrl)
                 .post(requestBody)
-                .addHeader("User-Agent", "DTG-Sync-Android/1.2 (GCM SP DRONEPOL)")
-                .addHeader("X-Radio-Serial", radioSerial)
-                .addHeader("X-Inspetoria", inspetoria)
+                .addHeader("User-Agent", "DTG-Sync-Android/1.2.1 (GCM SP DRONEPOL)")
                 .build()
 
             val response = httpClient.newCall(request).execute()
+            val code = response.code
             val isSuccess = response.isSuccessful
+            val responseBody = try { response.body?.string() } catch (ignored: Exception) { "" }
             response.close()
-            isSuccess
+
+            if (isSuccess) {
+                UploadFileResult(isSuccess = true, httpCode = code)
+            } else {
+                UploadFileResult(
+                    isSuccess = false,
+                    httpCode = code,
+                    errorMessage = "HTTP $code" + (if (!responseBody.isNullOrBlank()) ": $responseBody" else "")
+                )
+            }
         } catch (e: IOException) {
             Log.e(TAG, "Erro de rede no upload de ${file.name}", e)
-            false
+            UploadFileResult(isSuccess = false, errorMessage = "Falha de rede: ${e.message}")
         } catch (e: Exception) {
             Log.e(TAG, "Erro inesperado no upload de ${file.name}", e)
-            false
+            UploadFileResult(isSuccess = false, errorMessage = "${e.javaClass.simpleName}: ${e.message}")
         }
     }
 }
