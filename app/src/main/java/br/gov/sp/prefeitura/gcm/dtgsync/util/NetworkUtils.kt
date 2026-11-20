@@ -12,8 +12,8 @@ import java.net.Socket
  * Utilitários de Rede e Validação de Conexão Segura
  *
  * DRONEPOL - GCM SP (Divisão de Tecnologias Geoespaciais)
- * Responsável por testar se o rádio controle (DJI RC Plus) possui acesso à internet
- * e se o túnel VPN do Tailscale consegue alcançar o servidor DTG Hub no IP 100.66.229.107.
+ * Testa se o rádio controle possui conexão com o servidor DTG Hub
+ * priorizando o domínio seguro Cloudflare e caindo para o IP direto Tailscale (100.66.229.107:8085).
  */
 object NetworkUtils {
 
@@ -33,11 +33,33 @@ object NetworkUtils {
     }
 
     /**
+     * Obtém a URL base ativa mais rápida para comunicação com a Central
+     */
+    suspend fun getActiveServerBaseUrl(timeoutMs: Int = 1500): String = withContext(Dispatchers.IO) {
+        // 1. Testa via domínio público seguro HTTPS (Cloudflare)
+        try {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(DTG_HUB_PUBLIC_HOST, 443), timeoutMs)
+                return@withContext "https://$DTG_HUB_PUBLIC_HOST"
+            }
+        } catch (ignored: Exception) {}
+
+        // 2. Testa via IP da VPN Tailscale
+        try {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(DTG_HUB_TAILSCALE_IP, DTG_HUB_DEFAULT_PORT), timeoutMs)
+                return@withContext "http://$DTG_HUB_TAILSCALE_IP:$DTG_HUB_DEFAULT_PORT"
+            }
+        } catch (ignored: Exception) {}
+
+        "https://$DTG_HUB_PUBLIC_HOST"
+    }
+
+    /**
      * Testa via Socket TCP de baixa latência se o servidor DTG Hub está respondendo.
-     * Testa primeiro o endpoint público Cloudflare e depois o IP direto da VPN.
      */
     suspend fun isServerReachable(timeoutMs: Int = 2000): Boolean = withContext(Dispatchers.IO) {
-        // 1. Testa via domínio público seguro (Cloudflare Tunnel)
+        // 1. Testa via domínio público
         try {
             Socket().use { socket ->
                 socket.connect(InetSocketAddress(DTG_HUB_PUBLIC_HOST, 443), timeoutMs)
@@ -45,7 +67,7 @@ object NetworkUtils {
             }
         } catch (ignored: Exception) {}
 
-        // 2. Testa via IP da VPN Tailscale / WireGuard
+        // 2. Testa via IP da VPN Tailscale
         try {
             Socket().use { socket ->
                 socket.connect(InetSocketAddress(DTG_HUB_TAILSCALE_IP, DTG_HUB_DEFAULT_PORT), timeoutMs)

@@ -2,33 +2,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissões de Rede: Essenciais para comunicação com o DTG Hub e túnel WireGuard -->
+    <!-- Permissões de Rede: Comunicação segura com o DTG Hub via Tailscale e HTTPS -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
-    <!-- Permissão de Boot: Permite que a VPN e a sincronização iniciem sozinhas quando o rádio liga -->
+    <!-- Permissão de Boot: Permite que a sincronização inicie sozinha quando o rádio RC Plus liga -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Permissões de Armazenamento: Permite ler a pasta de voos /sdcard/DJI/dji.pilot.2/FlightRecord/ -->
+    <!-- Permissões de Armazenamento: Permite ler a pasta de voos do DJI Pilot 2 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
     <!-- Permissão de Acesso Total a Arquivos (Android 11+ no DJI RC Plus) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
 
-    <!-- Permissão de Notificações e Foreground Service (Android 9+) -->
+    <!-- Permissão de Notificações e WorkManager -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Permissão de Auto-Update OTA: Permite disparar instalação de atualizações do aplicativo -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-
-    <!-- Permissão de VPN de Sistema (WireGuard) -->
-    <uses-permission android:name="android.permission.BIND_VPN_SERVICE" tools:ignore="ProtectedPermissions" />
 
     <application
         android:allowBackup="true"

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
  * Gerenciador de Sincronização de Voos (DRONEPOL - GCM SP)
  *
  * Responsável por:
- * 1. Mapear as pastas internas de voo do DJI Pilot 2 no rádio Android.
+ * 1. Mapear as pastas de voo do DJI Pilot 2 no rádio Android (com.dji.industry.pilot).
  * 2. Filtrar voos novos ainda não enviados à Central.
  * 3. Enviar via HTTP POST seguro (multipart) para o servidor DTG Hub.
  * 4. Registrar a confirmação no histórico local para nunca duplicar dados.
@@ -34,15 +34,7 @@ class DtgSyncManager(private val context: Context) {
         private const val KEY_SYNCED_HASHES = "synced_file_hashes"
         private const val KEY_LAST_SYNC_TIME = "last_sync_timestamp"
         private const val KEY_INSPETORIA = "selected_inspetoria"
-        private const val KEY_SERVER_URL = "server_api_url"
-
-        // Diretórios onde o DJI Pilot 2 armazena os arquivos de histórico de voo
-        val FLIGHT_RECORD_PATHS = listOf(
-            "/sdcard/DJI/dji.pilot.2/FlightRecord",
-            "/sdcard/Android/data/dji.pilot.2/files/FlightRecord",
-            "/sdcard/Android/data/dji.pilot.2/files/FlightRecord/MCDatFlightRecords",
-            "/sdcard/DJI/FlightRecord"
-        )
+        private const val KEY_CUSTOM_SERIAL = "custom_radio_serial"
     }
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -68,20 +60,27 @@ class DtgSyncManager(private val context: Context) {
      * Obtém o identificador único do rádio controle (Serial / Hostname)
      */
     fun getRadioIdentifier(): String {
+        val custom = prefs.getString(KEY_CUSTOM_SERIAL, "")
+        if (!custom.isNullOrBlank()) return custom
+
         val hostname = try {
             val p = Runtime.getRuntime().exec("getprop net.hostname")
             p.inputStream.bufferedReader().readText().trim()
         } catch (e: Exception) {
             ""
         }
-        if (hostname.isNotEmpty()) return hostname
+        if (hostname.isNotBlank() && hostname != "localhost") return hostname
 
         val serial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try { Build.getSerial() } catch (e: Exception) { Build.SERIAL }
         } else {
             Build.SERIAL
         }
-        return if (serial != "unknown") "rc-$serial" else "dronepol-rcplus-${Build.MODEL.replace(" ", "-")}"
+        return if (serial != "unknown" && serial.isNotBlank()) "rc-$serial" else "dronepol-rcplus-${Build.MODEL.replace(" ", "-")}"
+    }
+
+    fun setRadioIdentifier(serial: String) {
+        prefs.edit().putString(KEY_CUSTOM_SERIAL, serial.trim()).apply()
     }
 
     fun getSelectedInspetoria(): String {
@@ -93,8 +92,7 @@ class DtgSyncManager(private val context: Context) {
     }
 
     fun getServerUrl(): String {
-        return prefs.getString(KEY_SERVER_URL, "https://dtg.yuriodilon.com/manage/api/v1/devices/flight-records/upload")
-            ?: "https://dtg.yuriodilon.com/manage/api/v1/devices/flight-records/upload"
+        return "https://dtg.yuriodilon.com/manage/api/v1/devices/flight-records/upload"
     }
 
     fun getSyncedCount(): Int {
@@ -127,19 +125,29 @@ class DtgSyncManager(private val context: Context) {
     suspend fun executeSync(listener: SyncLogListener? = null): Pair<Int, Int> = withContext(Dispatchers.IO) {
         listener?.onLogMessage("[INÍCIO] Iniciando rotina de verificação de voos...")
 
-        // 1. Validar se o servidor DTG Hub está acessível via Tailscale
-        listener?.onLogMessage("[REDE] Verificando conexão segura com DTG Hub (100.66.229.107)...")
+        // 1. Validar se o servidor DTG Hub está acessível
+        listener?.onLogMessage("[REDE] Verificando conexão com o DTG Hub...")
         val isReachable = NetworkUtils.isServerReachable()
         if (!isReachable) {
-            listener?.onLogMessage("[ALERTA] Servidor DTG Hub inalcançável. Verifique se a VPN Tailscale está ativa.")
+            listener?.onLogMessage("[ALERTA] Servidor DTG Hub inalcançável. Verifique se a rede/Tailscale está conectada.")
             listener?.onSyncFinished(0, 0)
             return@withContext Pair(0, 0)
         }
-        listener?.onLogMessage("[REDE] Servidor DTG Hub online e respondendo com baixa latência!")
+
+        val baseUrl = NetworkUtils.getActiveServerBaseUrl()
+        val uploadUrl = "$baseUrl/manage/api/v1/devices/flight-records/upload"
+        listener?.onLogMessage("[REDE] Servidor online! Rota ativa: $uploadUrl")
 
         // 2. Localizar arquivos de voo nos diretórios do DJI Pilot 2
-        val flightFiles = findFlightRecordFiles()
-        listener?.onLogMessage("[DISCO] Localizados ${flightFiles.size} arquivos de voo no rádio.")
+        listener?.onLogMessage("[DISCO] Mapeando diretórios de voo do DJI Pilot 2 no armazenamento interno...")
+        val flightFiles = findFlightRecordFiles(listener)
+
+        if (flightFiles.isEmpty()) {
+            listener?.onLogMessage("[DISCO] Nenhum arquivo de voo (.txt, .dat, .csv) foi localizado nos diretórios do rádio.")
+            listener?.onLogMessage("[DICA] Certifique-se de que a permissão 'Acesso a todos os arquivos' está ativa nas configurações.")
+            listener?.onSyncFinished(0, 0)
+            return@withContext Pair(0, 0)
+        }
 
         val syncedHashes = getSyncedHashes()
         val pendingFiles = flightFiles.filter { file ->
@@ -148,7 +156,7 @@ class DtgSyncManager(private val context: Context) {
         }
 
         if (pendingFiles.isEmpty()) {
-            listener?.onLogMessage("[OK] Todos os voos já estão sincronizados com a Central da GCM!")
+            listener?.onLogMessage("[OK] Todos os ${flightFiles.size} voos existentes já estão sincronizados com a Central da GCM!")
             listener?.onSyncFinished(0, 0)
             return@withContext Pair(0, 0)
         }
@@ -160,18 +168,17 @@ class DtgSyncManager(private val context: Context) {
 
         val radioSerial = getRadioIdentifier()
         val inspetoria = getSelectedInspetoria()
-        val serverUrl = getServerUrl()
 
         pendingFiles.forEachIndexed { index, file ->
             val hash = SecurityUtils.calculateFileSha256(file)
             listener?.onSyncProgress(index + 1, pendingFiles.size)
             listener?.onLogMessage("[UPLOAD ${index + 1}/${pendingFiles.size}] Enviando ${file.name} (${file.length() / 1024} KB)...")
 
-            val uploaded = uploadSingleFlightFile(file, hash, radioSerial, inspetoria, serverUrl)
+            val uploaded = uploadSingleFlightFile(file, hash, radioSerial, inspetoria, uploadUrl)
             if (uploaded) {
                 markHashAsSynced(hash)
                 success++
-                listener?.onLogMessage("[SUCESSO] ${file.name} recebido e registrado na Central com sucesso.")
+                listener?.onLogMessage("[SUCESSO] ${file.name} recebido e registrado na Central!")
             } else {
                 failed++
                 listener?.onLogMessage("[ERRO] Falha ao enviar ${file.name}. Tentará novamente no próximo ciclo.")
@@ -186,32 +193,72 @@ class DtgSyncManager(private val context: Context) {
     /**
      * Encontra todos os arquivos de voo (.txt, .dat, .csv) nas pastas conhecidas do DJI Pilot 2
      */
-    private fun findFlightRecordFiles(): List<File> {
+    private fun findFlightRecordFiles(listener: SyncLogListener? = null): List<File> {
         val foundFiles = mutableListOf<File>()
+        val externalStorage = Environment.getExternalStorageDirectory()
 
-        for (path in FLIGHT_RECORD_PATHS) {
-            val dir = File(path)
-            if (dir.exists() && dir.isDirectory) {
-                val files = dir.listFiles { file ->
-                    file.isFile && (file.extension.equals("txt", ignoreCase = true) ||
-                            file.extension.equals("dat", ignoreCase = true) ||
-                            file.extension.equals("csv", ignoreCase = true))
+        // Lista abrangente de diretórios do DJI Pilot 2 no Android (DJI RC Plus / Enterprise)
+        val candidatePaths = listOf(
+            File(externalStorage, "DJI/com.dji.industry.pilot/FlightRecord"),
+            File(externalStorage, "DJI/com.dji.industry.pilot/FlightRecord/MCDatFlightRecords"),
+            File(externalStorage, "DJI/dji.pilot.2/FlightRecord"),
+            File(externalStorage, "DJI/FlightRecord"),
+            File(externalStorage, "Android/data/com.dji.industry.pilot/files/FlightRecord"),
+            File(externalStorage, "Android/data/com.dji.industry.pilot/files/FlightRecord/MCDatFlightRecords"),
+            File(externalStorage, "Android/data/dji.pilot.2/files/FlightRecord"),
+            File("/sdcard/DJI/com.dji.industry.pilot/FlightRecord"),
+            File("/sdcard/DJI/com.dji.industry.pilot/FlightRecord/MCDatFlightRecords"),
+            File("/sdcard/DJI/dji.pilot.2/FlightRecord"),
+            File("/sdcard/DJI/FlightRecord")
+        )
+
+        for (dir in candidatePaths) {
+            try {
+                if (dir.exists() && dir.isDirectory) {
+                    val files = dir.listFiles { file ->
+                        file.isFile && (file.extension.equals("txt", ignoreCase = true) ||
+                                file.extension.equals("dat", ignoreCase = true) ||
+                                file.extension.equals("csv", ignoreCase = true))
+                    }
+                    if (!files.isNullOrEmpty()) {
+                        listener?.onLogMessage("[DISCO] Pasta ativa: ${dir.path} (${files.size} arquivos)")
+                        foundFiles.addAll(files)
+                    }
                 }
-                if (files != null) {
-                    foundFiles.addAll(files)
-                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Erro ao acessar ${dir.path}: ${e.message}")
             }
         }
 
-        // Tenta também a pasta raiz pública /DJI caso esteja em outro ponto de montagem
-        val externalStorage = Environment.getExternalStorageDirectory()
-        val defaultDjiDir = File(externalStorage, "DJI/dji.pilot.2/FlightRecord")
-        if (defaultDjiDir.exists() && defaultDjiDir.isDirectory) {
-            defaultDjiDir.listFiles()?.filter { it.isFile }?.let { foundFiles.addAll(it) }
+        // Se nenhuma das pastas padrão diretas retornou voos, faz busca dinâmica dentro de /DJI
+        if (foundFiles.isEmpty()) {
+            val djiFolder = File(externalStorage, "DJI")
+            if (djiFolder.exists() && djiFolder.isDirectory) {
+                listener?.onLogMessage("[DISCO] Buscando dinamicamente dentro de /sdcard/DJI...")
+                scanDirectoryRecursively(djiFolder, foundFiles, maxDepth = 4)
+            }
         }
 
         // Ordena por data (mais recentes primeiro) e remove duplicatas por caminho
-        return foundFiles.distinctBy { it.absolutePath }.sortedByDescending { it.lastModified() }
+        val distinct = foundFiles.distinctBy { it.absolutePath }.sortedByDescending { it.lastModified() }
+        if (distinct.isNotEmpty()) {
+            listener?.onLogMessage("[DISCO] Localizados ${distinct.size} arquivos de voo no total.")
+        }
+        return distinct
+    }
+
+    private fun scanDirectoryRecursively(dir: File, result: MutableList<File>, maxDepth: Int) {
+        if (maxDepth <= 0) return
+        val list = dir.listFiles() ?: return
+        for (item in list) {
+            if (item.isFile && (item.extension.equals("txt", ignoreCase = true) ||
+                        item.extension.equals("dat", ignoreCase = true) ||
+                        item.extension.equals("csv", ignoreCase = true))) {
+                result.add(item)
+            } else if (item.isDirectory && !item.name.startsWith(".")) {
+                scanDirectoryRecursively(item, result, maxDepth - 1)
+            }
+        }
     }
 
     /**
@@ -222,7 +269,7 @@ class DtgSyncManager(private val context: Context) {
         hash: String,
         radioSerial: String,
         inspetoria: String,
-        serverUrl: String
+        uploadUrl: String
     ): Boolean {
         return try {
             val mediaType = "application/octet-stream".toMediaTypeOrNull()
@@ -241,9 +288,9 @@ class DtgSyncManager(private val context: Context) {
                 .build()
 
             val request = Request.Builder()
-                .url(serverUrl)
+                .url(uploadUrl)
                 .post(requestBody)
-                .addHeader("User-Agent", "DTG-Sync-Android/1.0 (GCM SP DRONEPOL)")
+                .addHeader("User-Agent", "DTG-Sync-Android/1.2 (GCM SP DRONEPOL)")
                 .addHeader("X-Radio-Serial", radioSerial)
                 .addHeader("X-Inspetoria", inspetoria)
                 .build()

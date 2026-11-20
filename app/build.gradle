@@ -11,8 +11,8 @@ android {
         applicationId 'br.gov.sp.prefeitura.gcm.dtgsync'
         minSdk 26 // Android 8.0 Oreo (compatível com toda a linha DJI Smart Controller Enterprise e RC Plus)
         targetSdk 34
-        versionCode 4
-        versionName '1.1.2'
+        versionCode 5
+        versionName '1.2.0-tailscale'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
@@ -26,7 +26,6 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-        coreLibraryDesugaringEnabled true
     }
     kotlinOptions {
         jvmTarget = '17'
@@ -37,7 +36,6 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
@@ -45,9 +43,6 @@ dependencies {
 
     // WorkManager: Execução em segundo plano tolerante a reinicializações e quedas de rede
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
-
-    // WireGuard Tunnel: VPN nativa de sistema de altíssima performance para todo o rádio
-    implementation 'com.wireguard.android:tunnel:1.0.20230706'
 
     // OkHttp: Cliente HTTP robusto para upload de arquivos grandes com multipart e download OTA
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'

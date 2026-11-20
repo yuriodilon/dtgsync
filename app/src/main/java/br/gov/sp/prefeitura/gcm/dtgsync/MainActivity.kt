@@ -23,7 +23,6 @@ import br.gov.sp.prefeitura.gcm.dtgsync.receiver.BootReceiver
 import br.gov.sp.prefeitura.gcm.dtgsync.service.DtgSyncManager
 import br.gov.sp.prefeitura.gcm.dtgsync.update.AutoUpdateManager
 import br.gov.sp.prefeitura.gcm.dtgsync.util.NetworkUtils
-import br.gov.sp.prefeitura.gcm.dtgsync.vpn.WireGuardManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,7 +32,7 @@ import kotlinx.coroutines.withContext
  *
  * DRONEPOL - GCM SP (Divisão de Tecnologias Geoespaciais)
  * Integração:
- * 1. Túnel VPN WireGuard Nativo de Sistema (VpnService) para todo o rádio (Pilot 2, MQTT e RTMP).
+ * 1. Monitoramento de Rede Corporativa Tailscale (100.66.229.107).
  * 2. Sincronizador Automático e Resiliente de Logs de Voo do DJI Pilot 2.
  * 3. Mecanismo de Auto-Update OTA (Over-The-Air) para atualização autônoma da frota.
  */
@@ -41,12 +40,10 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var syncManager: DtgSyncManager
-    private lateinit var wireGuardManager: WireGuardManager
     private lateinit var autoUpdateManager: AutoUpdateManager
 
     companion object {
         private const val STORAGE_PERMISSION_CODE = 1001
-        private const val VPN_PERMISSION_CODE = 1002
 
         // Inspetorias Regionais da Guarda Civil Metropolitana de São Paulo
         val INSPETORIAS_GCM = listOf(
@@ -71,12 +68,10 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
         setContentView(binding.root)
 
         syncManager = DtgSyncManager(this)
-        wireGuardManager = WireGuardManager.getInstance(this)
         autoUpdateManager = AutoUpdateManager(this)
 
         initViews()
         setupInspetoriaSpinner()
-        setupWireGuardControls()
         setupAutoUpdate()
         checkAndRequestStoragePermissions()
 
@@ -135,83 +130,35 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
     }
 
     // ==========================================
-    // 1. GESTÃO DA VPN WIREGUARD EMBUTIDA
+    // 1. MONITORAMENTO DE REDE (TAILSCALE / DTG HUB)
     // ==========================================
-    private fun setupWireGuardControls() {
-        binding.tvVpnEndpoint.text = wireGuardManager.getServerEndpoint()
-        binding.tvVpnPubKey.text = wireGuardManager.getLocalPublicKey()
+    private fun checkServerConnection() {
+        binding.tvStatusBadge.text = "● TESTANDO..."
+        binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.dtg_warning_amber))
 
-        val isVpnActive = wireGuardManager.isTunnelActive()
-        binding.switchWireguard.isChecked = isVpnActive
-        updateVpnUi(isVpnActive)
-
-        binding.switchWireguard.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                startWireGuardTunnel()
-            } else {
-                stopWireGuardTunnel()
-            }
-        }
-    }
-
-    private fun startWireGuardTunnel() {
-        val prepareIntent = wireGuardManager.prepareVpnIntent(this)
-        if (prepareIntent != null) {
-            // Solicita permissão padrão de VPN do Android
-            startActivityForResult(prepareIntent, VPN_PERMISSION_CODE)
-        } else {
-            // Permissão já concedida anteriormente, sobe o túnel
-            connectWireGuard()
-        }
-    }
-
-    private fun connectWireGuard() {
-        appendLog("[WIREGUARD] Iniciando túnel de rede corporativa...")
-        binding.tvVpnStatus.text = "● CONECTANDO WIREGUARD..."
+        binding.tvVpnStatus.text = "● VERIFICANDO CONEXÃO..."
         binding.tvVpnStatus.setTextColor(ContextCompat.getColor(this, R.color.dtg_warning_amber))
 
         lifecycleScope.launch {
-            val result = wireGuardManager.startTunnel()
-            if (result.isSuccess) {
-                updateVpnUi(true)
-                appendLog("[WIREGUARD] Túnel conectado com sucesso! Rádio integrado à rede 100.66.229.107.")
-                checkServerConnection()
+            val isReachable = NetworkUtils.isServerReachable()
+            if (isReachable) {
+                binding.tvStatusBadge.text = "● ONLINE (DTG HUB)"
+                binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.dtg_success_green))
+
+                binding.tvVpnStatus.text = "● TAILSCALE CONECTADO (100.66.229.107)"
+                binding.tvVpnStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.dtg_success_green))
+                binding.tvVpnDetails.text = "Comunicação ativa via Tailscale e HTTPS"
+
+                appendLog("[REDE] Conexão com o servidor DTG Hub ativa (100.66.229.107).")
             } else {
-                updateVpnUi(false)
-                binding.switchWireguard.isChecked = false
-                appendLog("[WIREGUARD ERRO] Falha ao iniciar túnel: ${result.exceptionOrNull()?.message}")
-            }
-        }
-    }
+                binding.tvStatusBadge.text = "○ DESCONECTADO"
+                binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.dtg_danger_red))
 
-    private fun stopWireGuardTunnel() {
-        appendLog("[WIREGUARD] Desconectando túnel corporativo...")
-        lifecycleScope.launch {
-            wireGuardManager.stopTunnel()
-            updateVpnUi(false)
-            appendLog("[WIREGUARD] Túnel desconectado com sucesso.")
-            checkServerConnection()
-        }
-    }
+                binding.tvVpnStatus.text = "○ TAILSCALE DESCONECTADO"
+                binding.tvVpnStatus.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.dtg_danger_red))
+                binding.tvVpnDetails.text = "Verifique o app Tailscale e a conexão Wi-Fi/4G"
 
-    private fun updateVpnUi(isActive: Boolean) {
-        if (isActive) {
-            binding.tvVpnStatus.text = "● WIREGUARD CONECTADO (100.66.229.107)"
-            binding.tvVpnStatus.setTextColor(ContextCompat.getColor(this, R.color.dtg_success_green))
-        } else {
-            binding.tvVpnStatus.text = "○ WIREGUARD DESCONECTADO"
-            binding.tvVpnStatus.setTextColor(ContextCompat.getColor(this, R.color.dtg_danger_red))
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == VPN_PERMISSION_CODE) {
-            if (resultCode == RESULT_OK) {
-                connectWireGuard()
-            } else {
-                binding.switchWireguard.isChecked = false
-                appendLog("[WIREGUARD] Permissão de VPN recusada pelo operador.")
+                appendLog("[ALERTA] Servidor inacessível. Verifique se o app Tailscale está conectado ou ligue ao Wi-Fi.")
             }
         }
     }
@@ -307,24 +254,6 @@ class MainActivity : AppCompatActivity(), DtgSyncManager.SyncLogListener {
     private fun updateStatsUi() {
         binding.tvSyncedCount.text = syncManager.getSyncedCount().toString()
         binding.tvLastSyncTime.text = "Última sincronização: ${syncManager.getLastSyncTimeString()}"
-    }
-
-    private fun checkServerConnection() {
-        binding.tvStatusBadge.text = "● TESTANDO..."
-        binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this, R.color.dtg_warning_amber))
-
-        lifecycleScope.launch {
-            val isReachable = NetworkUtils.isServerReachable()
-            if (isReachable) {
-                binding.tvStatusBadge.text = "● ONLINE (DTG HUB)"
-                binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.dtg_success_green))
-                appendLog("[REDE] Conexão com o servidor DTG Hub ativa.")
-            } else {
-                binding.tvStatusBadge.text = "○ DESCONECTADO"
-                binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.dtg_danger_red))
-                appendLog("[ALERTA] Servidor inacessível. Ative a VPN WireGuard ou conecte ao Wi-Fi.")
-            }
-        }
     }
 
     private fun triggerManualSync() {

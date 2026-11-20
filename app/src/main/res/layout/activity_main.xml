@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <!-- CARD 1: VPN WIREGUARD EMBUTIDA -->
+                <!-- CARD 1: REDE CORPORATIVA TAILSCALE -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -89,35 +89,22 @@
                         android:orientation="vertical"
                         android:padding="14dp">
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:layout_marginBottom="8dp">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="VPN WIREGUARD CORPORATIVA"
-                                android:textColor="@color/dtg_cyan_accent"
-                                android:textSize="12sp"
-                                android:textStyle="bold"
-                                android:letterSpacing="0.06" />
-
-                            <com.google.android.material.switchmaterial.SwitchMaterial
-                                android:id="@+id/switchWireguard"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content" />
-                        </LinearLayout>
+                            android:text="REDE CORPORATIVA TAILSCALE"
+                            android:textColor="@color/dtg_cyan_accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.06"
+                            android:layout_marginBottom="8dp" />
 
                         <TextView
                             android:id="@+id/tvVpnStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="○ WIREGUARD DESCONECTADO"
-                            android:textColor="@color/dtg_danger_red"
+                            android:text="● VERIFICANDO CONEXÃO..."
+                            android:textColor="@color/dtg_warning_amber"
                             android:textStyle="bold"
                             android:textSize="12sp"
                             android:layout_marginBottom="6dp" />
@@ -125,7 +112,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Servidor Endpoint:"
+                            android:text="IP do Servidor na VPN:"
                             android:textColor="@color/dtg_text_muted"
                             android:textSize="11sp" />
 
@@ -133,7 +120,7 @@
                             android:id="@+id/tvVpnEndpoint"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="100.66.229.107:51820"
+                            android:text="100.66.229.107"
                             android:textColor="@color/dtg_text_white"
                             android:fontFamily="monospace"
                             android:textSize="12sp"
@@ -142,20 +129,17 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Chave Pública do Rádio:"
+                            android:text="Status do Túnel:"
                             android:textColor="@color/dtg_text_muted"
                             android:textSize="11sp" />
 
                         <TextView
-                            android:id="@+id/tvVpnPubKey"
+                            android:id="@+id/tvVpnDetails"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Carregando chave..."
+                            android:text="Tailscale VPN Ativa no Sistema"
                             android:textColor="@color/dtg_text_muted"
-                            android:fontFamily="monospace"
-                            android:textSize="11sp"
-                            android:maxLines="1"
-                            android:ellipsize="middle" />
+                            android:textSize="11sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
