@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/dtg_dark_bg"
+    android:padding="16dp">
+
+    <!-- Topbar Institucional -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DTG SYNC • DRONEPOL GCM-SP"
+                android:textColor="@color/dtg_text_white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Agente de Sincronização de Voos, VPN WireGuard &amp; Atualização OTA"
+                android:textColor="@color/dtg_text_muted"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <!-- Indicador Geral de Status da Rede -->
+        <TextView
+            android:id="@+id/tvStatusBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="● VERIFICANDO..."
+            android:textColor="@color/dtg_warning_amber"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:background="@color/dtg_card_bg" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <!-- Coluna da Esquerda: VPN, Unidade e Status -->
+        <ScrollView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.1"
+            android:fillViewport="true"
+            android:layout_marginEnd="8dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- CARD 1: VPN WIREGUARD EMBUTIDA -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/dtg_card_bg"
+                    app:strokeColor="@color/dtg_card_border"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="10dp"
+                    android:layout_marginBottom="10dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="8dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="VPN WIREGUARD CORPORATIVA"
+                                android:textColor="@color/dtg_cyan_accent"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.06" />
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switchWireguard"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvVpnStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="○ WIREGUARD DESCONECTADO"
+                            android:textColor="@color/dtg_danger_red"
+                            android:textStyle="bold"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="6dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Servidor Endpoint:"
+                            android:textColor="@color/dtg_text_muted"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tvVpnEndpoint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="100.66.229.107:51820"
+                            android:textColor="@color/dtg_text_white"
+                            android:fontFamily="monospace"
+                            android:textSize="12sp"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Chave Pública do Rádio:"
+                            android:textColor="@color/dtg_text_muted"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tvVpnPubKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Carregando chave..."
+                            android:textColor="@color/dtg_text_muted"
+                            android:fontFamily="monospace"
+                            android:textSize="11sp"
+                            android:maxLines="1"
+                            android:ellipsize="middle" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 2: IDENTIFICAÇÃO E INSPETORIA -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/dtg_card_bg"
+                    app:strokeColor="@color/dtg_card_border"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="10dp"
+                    android:layout_marginBottom="10dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="UNIDADE &amp; EQUIPAMENTO"
+                            android:textColor="@color/dtg_cyan_accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.06"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Inspetoria Regional / Base:"
+                            android:textColor="@color/dtg_text_muted"
+                            android:textSize="11sp" />
+
+                        <Spinner
+                            android:id="@+id/spinnerInspetoria"
+                            android:layout_width="match_parent"
+                            android:layout_height="40dp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginBottom="8dp"
+                            android:background="@color/dtg_dark_bg" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Serial do Rádio (Hostname):"
+                            android:textColor="@color/dtg_text_muted"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tvRadioSerial"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="rc-9N9CN4E00141V8"
+                            android:textColor="@color/dtg_text_white"
+                            android:textStyle="bold"
+                            android:fontFamily="monospace"
+                            android:textSize="13sp"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Endereço DTG Hub API:"
+                            android:textColor="@color/dtg_text_muted"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tvServerHost"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="https://dtg.yuriodilon.com"
+                            android:textColor="@color/dtg_primary_blue"
+                            android:fontFamily="monospace"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 3: SINCRONIZAÇÃO E AUTO-UPDATE OTA -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/dtg_card_bg"
+                    app:strokeColor="@color/dtg_card_border"
+                    app:strokeWidth="1dp"
+                    app:cardCornerRadius="10dp"
+                    android:layout_marginBottom="10dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="8dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="SITUAÇÃO DE VOOS &amp; ATUALIZAÇÕES"
+                                android:textColor="@color/dtg_cyan_accent"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.06" />
+
+                            <TextView
+                                android:id="@+id/tvAppVersion"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="v1.1.0-wireguard"
+                                android:textColor="@color/dtg_text_muted"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="6dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Voos Sincronizados com a Central:"
+                                android:textColor="@color/dtg_text_muted"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tvSyncedCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0"
+                                android:textColor="@color/dtg_success_green"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvLastSyncTime"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Última sincronização: Nenhuma realizada ainda"
+                            android:textColor="@color/dtg_text_muted"
+                            android:textSize="11sp"
+                            android:layout_marginBottom="8dp" />
+
+                        <!-- Botão de Checagem OTA -->
+                        <Button
+                            android:id="@+id/btnCheckUpdate"
+                            android:layout_width="match_parent"
+                            android:layout_height="36dp"
+                            android:text="Verificar Atualizações do App (OTA)"
+                            android:textSize="11sp"
+                            android:textAllCaps="false"
+                            android:textColor="@color/dtg_text_white"
+                            android:backgroundTint="@color/dtg_card_border" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Coluna da Direita: Terminal de Logs Operacionais e Ações Rápidas -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.3"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/dtg_card_bg"
+                app:strokeColor="@color/dtg_card_border"
+                app:strokeWidth="1dp"
+                app:cardCornerRadius="10dp"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="TERMINAL OPERACIONAL (LOGS EM TEMPO REAL)"
+                            android:textColor="@color/dtg_cyan_accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.06" />
+
+                        <Button
+                            android:id="@+id/btnClearLogs"
+                            android:layout_width="wrap_content"
+                            android:layout_height="28dp"
+                            android:text="Limpar"
+                            android:textSize="10sp"
+                            android:textAllCaps="false"
+                            android:textColor="@color/dtg_text_muted"
+                            android:backgroundTint="@color/dtg_dark_bg" />
+                    </LinearLayout>
+
+                    <ScrollView
+                        android:id="@+id/scrollLogs"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@color/dtg_dark_bg"
+                        android:padding="8dp">
+
+                        <TextView
+                            android:id="@+id/tvLogs"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="[INICIALIZAÇÃO] DTG Sync v1.1.0 (DRONEPOL GCM SP) pronto.\n[SISTEMA] Monitorando logs de voo e túnel WireGuard."
+                            android:textColor="@color/dtg_text_white"
+                            android:fontFamily="monospace"
+                            android:textSize="11sp"
+                            android:lineSpacingExtra="3dp" />
+                    </ScrollView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Botões de Ação na Base -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnCheckConnection"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="Testar Conexão"
+                    android:textColor="@color/dtg_text_white"
+                    android:backgroundTint="@color/dtg_card_bg"
+                    android:layout_marginEnd="8dp" />
+
+                <Button
+                    android:id="@+id/btnSyncNow"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1.2"
+                    android:text="Sincronizar Voos"
+                    android:textColor="@color/dtg_text_white"
+                    android:textStyle="bold"
+                    android:backgroundTint="@color/dtg_primary_blue" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

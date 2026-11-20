@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">DTG Sync • DRONEPOL</string>
+    <string name="app_subtitle">Sincronizador Automático de Missões, VPN &amp; Telemetria</string>
+    <string name="status_connected">Conectado ao DTG Hub</string>
+    <string name="status_disconnected">Aguardando Conexão VPN / Wi-Fi</string>
+    <string name="btn_sync_now">Sincronizar Voos</string>
+    <string name="btn_check_connection">Testar Conexão</string>
+    <string name="btn_check_update">Buscar Atualizações</string>
+    <string name="server_url_label">Servidor DTG Hub:</string>
+    <string name="inspetoria_label">Inspetoria / Unidade Operacional:</string>
+    <string name="radio_sn_label">Identificador do Rádio (Serial):</string>
+    <string name="flights_synced_label">Voos Sincronizados com a Central:</string>
+    <string name="vpn_title">VPN WIREGUARD CORPORATIVA</string>
+    <string name="vpn_status_active">● VPN CONECTADA (100.66.229.107)</string>
+    <string name="vpn_status_inactive">○ VPN DESCONECTADA</string>
+    <string name="version_label">Versão Instalada:</string>
+</resources>

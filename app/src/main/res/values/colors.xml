@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta Tática DRONEPOL - GCM SP -->
+    <color name="dtg_dark_bg">#0C141F</color>
+    <color name="dtg_card_bg">#141F2D</color>
+    <color name="dtg_card_border">#1F2E42</color>
+    <color name="dtg_primary_blue">#2D8CF0</color>
+    <color name="dtg_primary_hover">#3B9DFA</color>
+    <color name="dtg_cyan_accent">#00E5FF</color>
+    <color name="dtg_success_green">#10B981</color>
+    <color name="dtg_warning_amber">#F59E0B</color>
+    <color name="dtg_danger_red">#EF4444</color>
+    <color name="dtg_text_white">#F8FAFC</color>
+    <color name="dtg_text_muted">#94A3B8</color>
+</resources>
